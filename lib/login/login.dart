@@ -123,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.all(Radius.circular(9)),
                             borderSide: BorderSide(color: Colors.black),
                           ),
-                          labelText: 'Palavra-Passe',
+                          labelText: 'Password',
                           labelStyle: const TextStyle(color: Colors.black),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -149,7 +149,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 1),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         TextButton(
                           onPressed: () {
@@ -171,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                             showForget(context);
                           },
                           child: const Text(
-                            'Esqueceu a Palavra-Passe?',
+                            'Esqueceu a Password?',
                             style: TextStyle(color: Colors.black87),
                           ),
                         )
@@ -201,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'Utilizador e Palavra-Passe não podem estar vazios'),
+                                    'Utilizador e Password não podem estar vazios'),
                                 duration: Duration(seconds: 2),
                               ),
                             );
@@ -210,16 +210,18 @@ class _LoginPageState extends State<LoginPage> {
                                 .loginUser(username, password);
                             if (response['success']) {
                               Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const LoadingPage()));
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LoadingPage(),
+                                ),
+                              );
                             } else {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(
-                                content: Text(response['message']),
-                                duration: const Duration(seconds: 2),
-                              ));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(response['message']),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
                             }
                           }
                         },

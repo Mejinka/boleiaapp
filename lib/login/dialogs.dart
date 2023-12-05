@@ -225,19 +225,19 @@ void showNewUser(
 
 void showForget(context) async {
   final localContext = context;
-  final TextEditingController forgetUserController = TextEditingController();
+  final TextEditingController forgetEmailController = TextEditingController();
 
   showDialog(
     context: localContext,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text('Esqueceu a senha?'),
+        title: const Text('Esqueceu a Password?'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: forgetUserController,
+                controller: forgetEmailController,
                 decoration: const InputDecoration(
                   enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black26),
@@ -245,7 +245,7 @@ void showForget(context) async {
                   focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.black26),
                   ),
-                  labelText: "Usuário",
+                  labelText: "Email",
                   prefixIcon: Opacity(
                     opacity: 0,
                     child: Icon(Icons.person),
@@ -263,29 +263,33 @@ void showForget(context) async {
           TextButton(
             child: const Text('Cancelar'),
             onPressed: () {
-              forgetUserController.clear();
+              forgetEmailController.clear();
               Navigator.of(context).pop();
             },
           ),
           TextButton(
-            child: const Text('Redefinir Senha'),
+            child: const Text('Redefinir Password'),
             onPressed: () async {
-              final SharedPreferences prefs =
-                  await SharedPreferences.getInstance();
-              final String savedUsername = prefs.getString('username') ?? '';
-
-              if (forgetUserController.text == savedUsername) {
-                Navigator.of(context).pop();
-                showResetPasswordDialog(context);
+              var response = await ApiService()
+                  .recoverPassword(forgetEmailController.text);
+              if (response['success']) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(response['message']),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                Navigator.of(context).pop(); // Fecha o diálogo atual
+                showResetPasswordDialog(context, forgetEmailController.text);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Usuário incorreto'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text(response['message']),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               }
-              forgetUserController.clear();
+              forgetEmailController.clear();
             },
           )
         ],
@@ -294,99 +298,138 @@ void showForget(context) async {
   );
 }
 
-void showResetPasswordDialog(BuildContext context) {
+void showResetPasswordDialog(BuildContext context, String userEmail) {
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController confirmNewPasswordController =
       TextEditingController();
+  final localContext = context;
+  bool isPasswordVisible = false;
+  bool isPasswordVisibleC = false;
 
   showDialog(
-    context: context,
-    builder: (BuildContext dialogContext) {
+    context: localContext,
+    builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text('Redefinir Senha'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: newPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Nova Senha',
-                  enabledBorder: OutlineInputBorder(),
-                  focusedBorder: OutlineInputBorder(),
+        title: const Text('Redefinir Password'),
+        content: StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: newPasswordController,
+                  decoration: InputDecoration(
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    focusedErrorBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    labelText: "Password",
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isPasswordVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () {
+                        setState(
+                          () {
+                            isPasswordVisible = !isPasswordVisible;
+                          },
+                        );
+                      },
+                    ),
+                    prefixIcon: const Opacity(
+                      opacity: 0,
+                      child: Icon(Icons.person),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(maxWidth: 10),
+                  ),
+                  obscureText: !isPasswordVisible,
                 ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: confirmNewPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmar Nova Senha',
-                  enabledBorder: OutlineInputBorder(),
-                  focusedBorder: OutlineInputBorder(),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: confirmNewPasswordController,
+                  decoration: InputDecoration(
+                    enabledBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    focusedErrorBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black26),
+                    ),
+                    labelText: 'Confirmar Nova Password',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isPasswordVisibleC
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () {
+                        setState(
+                          () {
+                            isPasswordVisibleC = !isPasswordVisibleC;
+                          },
+                        );
+                      },
+                    ),
+                    prefixIcon: const Opacity(
+                      opacity: 0,
+                      child: Icon(Icons.person),
+                    ),
+                    prefixIconConstraints: const BoxConstraints(maxWidth: 10),
+                  ),
+                  obscureText: !isPasswordVisibleC,
                 ),
-                obscureText: true,
-              ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
         actions: [
           TextButton(
             child: const Text('Cancelar'),
             onPressed: () {
-              Navigator.of(dialogContext).pop();
+              Navigator.of(context).pop();
             },
           ),
           TextButton(
             child: const Text('Salvar'),
+            // Dentro do TextButton 'Salvar'
             onPressed: () async {
               if (newPasswordController.text ==
                   confirmNewPasswordController.text) {
-                final SharedPreferences prefs =
-                    await SharedPreferences.getInstance();
-                String currentUsername = prefs.getString('username') ?? '';
-                String currentUserType =
-                    prefs.getString('usertype') ?? ''; // Adicionado
+                var response = await ApiService().updatePassword(userEmail,
+                    newPasswordController.text); // Use userEmail aqui
+                if (response['success']) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(response['message']),
+                        duration: const Duration(seconds: 2)),
+                  );
+                } else {
+                  debugPrint('As senhas não coincidem');
 
-                if (currentUsername.isNotEmpty) {
-                  saveUser(currentUsername, newPasswordController.text,
-                      currentUserType);
-                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(response['message']),
+                        duration: const Duration(seconds: 2)),
+                  );
                 }
               } else {
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('As senhas não coincidem'),
                     duration: Duration(seconds: 2),
                   ),
                 );
               }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
-
-void savePro(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Procedimento'),
-        content: const Text('Deseja Salvar o Procedimento?'),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Não'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Sim'),
-            onPressed: () {
-              Navigator.of(context).pop();
             },
           ),
         ],

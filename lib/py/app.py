@@ -22,11 +22,6 @@ DB_NAME = os.environ.get('DB_NAME', 'db_app_b')
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}) 
 
-mail = Mail(app)
-
-app.config['SECRET_KEY'] = '\x0b\x10fj\x14g\xf7\xd1\x8eh'
-serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-
 def get_db_connection():
     return mysql.connector.connect(
         host=DB_HOST,
@@ -68,7 +63,7 @@ def cadastro():
 
         usuario = data['usuario']
         email = data['email']
-        senha = bcrypt.hashpw(data['senha'].encode('utf-8'), bcrypt.gensalt())
+        senha = data['senha']
         departamento = data['departamento']
 
         if not is_valid_email(email):
@@ -83,7 +78,7 @@ def cadastro():
                 cursor.execute('INSERT INTO cadastro (usuario, email, senha, departamento) VALUES (%s, %s, %s, %s)', 
                                (usuario, email, senha, departamento))
                 conn.commit()
-                return jsonify({"success": True, "message": "Usuário cadastrado com sucesso"})
+                return jsonify({"success": True, "message": "Utilizador cadastrado com sucesso"})
 
     except Exception as e:
         print(e)
@@ -98,7 +93,7 @@ def login():
         senha = data.get('senha')
 
         if not usuario or not senha:
-            return jsonify({"success": False, "message": "Usuário e senha são obrigatórios"})
+            return jsonify({"success": False, "message": "Utilizador e Password são obrigatórios"})
 
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
@@ -106,13 +101,52 @@ def login():
                     'SELECT senha FROM cadastro WHERE usuario = %s', (usuario,))
                 user_record = cursor.fetchone()
 
-                if user_record and bcrypt.checkpw(senha.encode('utf-8'), user_record[0].encode('utf-8')):
+                if user_record and user_record[0] == senha:
                     return jsonify({"success": True, "message": "Login bem-sucedido"})
                 else:
-                    return jsonify({"success": False, "message": "Usuário ou senha incorretos"})
+                    return jsonify({"success": False, "message": "Utilizador ou Password incorretos"})
+
     except Exception as e:
         print(e)
         return jsonify({"success": False, "message": "Erro ao processar a solicitação"})
+
+@app.route('/recsenha', methods=['POST'])
+def recsenha():
+    data = request.json
+    email = data['email']
+
+    if not is_valid_email(email):
+        return jsonify({"success": False, "message": "Email inválido"})
+        
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM cadastro WHERE email = %s', (email,))
+            if cursor.fetchone():
+                # Email encontrado
+                return jsonify({"success": True, "message": "Email encontrado"})
+            else:
+                # Email não encontrado
+                return jsonify({"success": False, "message": "Email não cadastrado"})
+@app.route('/update_password', methods=['POST'])
+def update_password():
+    data = request.json
+    email = data.get('email')
+    novaSenha = data.get('novaSenha')
+
+    if not email or not novaSenha:
+        return jsonify({"success": False, "message": "Email ou Password ausentes"})
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE cadastro SET senha = %s WHERE email = %s', (novaSenha, email))
+            conn.commit()
+            if cursor.rowcount > 0:
+                return jsonify({"success": True, "message": "Password atualizada com sucesso"})
+            else:
+                return jsonify({"success": False, "message": "Email não encontrado"})
+
+    return jsonify({"success": False, "message": "Erro ao atualizar senha"})
+
 
     
 if __name__ == '__main__':

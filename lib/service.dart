@@ -50,4 +50,41 @@ class ApiService {
     }
     return {'success': false, 'message': 'Erro na comunicação com o servidor'};
   }
+
+  Future<Map<String, dynamic>> recoverPassword(String email) async {
+    final url = Uri.parse('$_baseUrl/recsenha');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      return {
+        'success': responseData['success'],
+        'message': responseData['message']
+      };
+    }
+    return {'success': false, 'message': 'Erro na comunicação com o servidor'};
+  }
+
+  Future<Map<String, dynamic>> updatePassword(
+      String email, String novaSenha) async {
+    final url = Uri.parse('$_baseUrl/update_password');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'novaSenha': novaSenha}),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      return {
+        'success': responseData['success'],
+        'message': responseData['message']
+      };
+    }
+    return {'success': false, 'message': 'Erro na comunicação com o servidor'};
+  }
 }
