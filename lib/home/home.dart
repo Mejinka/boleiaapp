@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-import 'package:intl/intl.dart';
+import 'package:app_boleia/layout.dart';
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -35,8 +38,30 @@ class _HomeState extends State<Home> {
         false;
   }
 
+  String _username = '';
+  String _usertype = '';
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername();
+  }
+
+  Future<void> _loadUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    String username = prefs.getString('username') ?? 'Usuário Anônimo';
+    String usertype = prefs.getString('usertype') ?? 'Cargo Anônimo';
+
+    setState(() {
+      _username = username;
+      _usertype = usertype;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double screenheight = MediaQuery.of(context).size.height;
+
     return WillPopScope(
       onWillPop: _confirmExit,
       child: Scaffold(
@@ -48,29 +73,34 @@ class _HomeState extends State<Home> {
                   padding: EdgeInsets.zero,
                   children: <Widget>[
                     DrawerHeader(
-                      decoration: BoxDecoration(
-                        color: Colors.blueGrey.shade800,
+                      decoration: const BoxDecoration(
+                        color: Color.fromARGB(200, 23, 135, 172),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
-                          CircleAvatar(
-                            radius: 30.0,
-                            backgroundColor: Colors.white,
-                            child: Icon(Icons.person,
-                                size: 60, color: Colors.blueGrey.shade800),
+                          GestureDetector(
+                            child: CircleAvatar(
+                                backgroundColor:
+                                    const Color.fromARGB(200, 23, 135, 172),
+                                radius: 30.0,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white,
+                                )),
                           ),
                           const SizedBox(height: 10.0),
-                          const Text(
-                            '############',
-                            style: TextStyle(
+                          Text(
+                            _username,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16.0,
                             ),
                           ),
-                          const Text(
-                            '#################',
-                            style: TextStyle(
+                          Text(
+                            _usertype,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16.0,
                             ),
@@ -79,72 +109,121 @@ class _HomeState extends State<Home> {
                       ),
                     ),
                     ListTile(
+                      leading: const Icon(Icons.add_circle),
+                      title: const Text('Iniciar Procedimento'),
+                      onTap: () {
+                        Navigator.pop(context);
+
+                        //   Navigator.push(
+                        //     context,
+                        //     MaterialPageRoute(
+                        //         builder: (context) => const IniciarProc()),
+                        //   );
+                      },
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.calculate),
                       title: const Text('Calculadora'),
                       onTap: () {
+                        Navigator.pop(context);
+
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (context) => const Calculadora()),
+                        // );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.alarm_add),
+                      title: const Text('Temporizador'),
+                      onTap: () {
+                        Navigator.pop(context);
+
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(builder: (context) => const Temp()),
+                        // );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.receipt_long),
+                      title: const Text('Bulário'),
+                      onTap: () {
+                        Navigator.pop(context);
+
                         //  Navigator.push(
                         //    context,
                         //    MaterialPageRoute(
-                        //        builder: (context) => const Calculadora()),
+                        //        builder: (context) => const Bulario()),
                         //  );
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.favorite), //
+                      leading: const Icon(Icons.favorite),
                       title: const Text('Favoritos'),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SecondPage()),
-                        );
+                        Navigator.pop(context);
+
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (context) => const Bulario()),
+                        // );
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.access_alarm), //
-                      title: const Text('Alarme'),
+                      leading: const Icon(Icons.history),
+                      title: const Text('Historico'),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ThirdPage()),
-                        );
+                        Navigator.pop(context);
+
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (context) => const Bulario()),
+                        // );
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.info), //
+                      leading: const Icon(Icons.settings),
+                      title: const Text('Configurações'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        //  Navigator.push(
+                        //    context,
+                        //    MaterialPageRoute(
+                        //        builder: (context) => const ConfigApp()),
+                        //  );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.info),
                       title: const Text('Sobre'),
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const FourthPage()),
-                        );
+                        Navigator.pop(context);
+                        //   Navigator.push(
+                        //       context,
+                        //       MaterialPageRoute(
+                        //           builder: (context) => const ProfilePage()));
                       },
                     ),
                   ],
                 ),
               ),
-              // Ícone na parte inferior do Drawer
               Container(
                 padding: const EdgeInsets.all(16.0),
                 child: IconButton(
                   icon: Icon(Icons.close, color: Colors.blueGrey.shade800),
                   onPressed: () {
-                    Navigator.pop(context); // Fecha o Drawer
+                    Navigator.pop(context);
                   },
                 ),
               ),
             ],
           ),
         ),
-        appBar: AppBar(
-          forceMaterialTransparency: true,
-          automaticallyImplyLeading: true,
-          centerTitle: true,
-          iconTheme:
-              const IconThemeData(color: Colors.black), // Mudança feita aqui
-        ),
+        appBar: appBar(title: 'Home'),
         backgroundColor: Colors.white,
         body: Column(
           children: [
@@ -154,218 +233,39 @@ class _HomeState extends State<Home> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   CircleAvatar(
-                    radius: 70.0,
-                    backgroundColor: Colors.grey.shade400,
-                    child:
-                        const Icon(Icons.person, size: 80, color: Colors.black),
-                  ),
+                      backgroundColor: const Color.fromARGB(200, 23, 135, 172),
+                      radius: 70.0,
+                      child: const Icon(
+                        Icons.person,
+                        size: 80,
+                        color: Colors.white,
+                      )),
                   const SizedBox(height: 15.0),
-                  const Text(
-                    '################',
-                    style: TextStyle(
+                  Text(
+                    _username,
+                    style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.0,
                     ),
                   ),
-                  const Text(
-                    '#######################',
-                    style: TextStyle(
+                  Text(
+                    _usertype,
+                    style: const TextStyle(
                       color: Colors.black,
+                      fontWeight: FontWeight.w600,
                       fontSize: 16.0,
                     ),
                   ),
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(10.0),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: Column(
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: <Widget>[
-                      ElevatedButton(
-                        onPressed: () {
-                          //Navigator.push(
-                          //    context,
-                          //    MaterialPageRoute(
-                          //        builder: (context) => const NumberPage()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.black,
-                            backgroundColor: Colors.white),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.access_alarm,
-                                size: 60.0, color: Colors.black),
-                            Text("Alarme"),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          //Navigator.push(
-                          //    context,
-                          //    MaterialPageRoute(
-                          //        builder: (context) => const Calculadora()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.black,
-                            backgroundColor: Colors.white),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.calculate,
-                                size: 60.0, color: Colors.black),
-                            Text("Calculadora"),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: <Widget>[
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const SecondPage()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.black,
-                            backgroundColor: Colors.white),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.favorite,
-                                size: 60.0, color: Colors.black),
-                            Text("Favoritos"),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const FourthPage()));
-                        },
-                        style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.black,
-                            backgroundColor: Colors.white),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.info, size: 60.0, color: Colors.black),
-                            Text("Sobre"),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            SizedBox(
+              height: 0.05 * screenheight,
+            ),
+            Column(
+              children: <Widget>[],
             )
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class SecondPage extends StatelessWidget {
-  const SecondPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    DateTime agora = DateTime.now();
-    String dataFormatada = DateFormat('dd/MM/yyyy').format(agora);
-    String horaFormatada = DateFormat('HH:mm:ss').format(agora);
-    return Scaffold(
-      appBar: AppBar(
-        forceMaterialTransparency: true,
-        automaticallyImplyLeading: true,
-        centerTitle: true,
-        iconTheme:
-            const IconThemeData(color: Colors.black), // Mudança feita aqui
-      ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('VAZIO SEM NADA'),
-            Text('Data: $dataFormatada '),
-            Text(' Hora: $horaFormatada   ')
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ThirdPage extends StatelessWidget {
-  const ThirdPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    DateTime agora = DateTime.now();
-    String dataFormatada = DateFormat('dd/MM/yyyy').format(agora);
-    String horaFormatada = DateFormat('HH:mm:ss').format(agora);
-    return Scaffold(
-      appBar: AppBar(
-        forceMaterialTransparency: true,
-        automaticallyImplyLeading: true,
-        centerTitle: true,
-        iconTheme:
-            const IconThemeData(color: Colors.black), // Mudança feita aqui
-      ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('VAZIO SEM NADA'),
-            Text('Data: $dataFormatada '),
-            Text(' Hora: $horaFormatada   ')
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class FourthPage extends StatelessWidget {
-  const FourthPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    DateTime agora = DateTime.now();
-    String dataFormatada = DateFormat('dd/MM/yyyy').format(agora);
-    String horaFormatada = DateFormat('HH:mm:ss').format(agora);
-    return Scaffold(
-      appBar: AppBar(
-        forceMaterialTransparency: true,
-        automaticallyImplyLeading: true,
-        centerTitle: true,
-        iconTheme:
-            const IconThemeData(color: Colors.black), // Mudança feita aqui
-      ),
-      body: Center(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('VAZIO SEM NADA'),
-            Text('Data: $dataFormatada '),
-            Text(' Hora: $horaFormatada   ')
           ],
         ),
       ),

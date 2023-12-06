@@ -177,7 +177,6 @@ class _LoginPageState extends State<LoginPage> {
                         )
                       ],
                     ),
-                    const Divider(color: Colors.transparent),
                     SizedBox(
                       width: 100,
                       height: 50,
