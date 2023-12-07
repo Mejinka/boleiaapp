@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ApiService {
-  final String _baseUrl =
-      'http://192.168.2.121:3001'; // Substitua com a URL da sua API
+import 'home/home.dart';
 
-  Future<Map<String, dynamic>> registerUser(
-      String usuario, String email, String senha, String departamento) async {
+class ApiService {
+  final String _baseUrl = 'http://192.168.2.121:3001';
+  Future<Map<String, dynamic>> registerUser(String usuario, String email,
+      String senha, String departamento, String dropdownValueM) async {
     final url = Uri.parse('$_baseUrl/cadastro');
     final response = await http.post(
       url,
@@ -17,6 +17,7 @@ class ApiService {
         'email': email,
         'senha': senha,
         'departamento': departamento,
+        'escolha': dropdownValueM,
       }),
     );
 
@@ -45,7 +46,9 @@ class ApiService {
       final responseData = json.decode(response.body);
       return {
         'success': responseData['success'],
-        'message': responseData['message']
+        'message': responseData['message'],
+        'usuario': responseData['usuario'],
+        'departamento': responseData['departamento']
       };
     }
     return {'success': false, 'message': 'Erro na comunicação com o servidor'};
@@ -86,5 +89,21 @@ class ApiService {
       };
     }
     return {'success': false, 'message': 'Erro na comunicação com o servidor'};
+  }
+
+  Future<List<Motorista>> getMotoristas() async {
+    final url = Uri.parse('$_baseUrl/motoristas');
+    final response = await http.get(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> motoristasJson = json.decode(response.body) as List;
+      return motoristasJson.map((json) => Motorista.fromJson(json)).toList();
+    } else {
+      // Se a resposta não for bem-sucedida, lançar uma exceção
+      throw Exception('Erro ao carregar motoristas: ${response.statusCode}');
+    }
   }
 }

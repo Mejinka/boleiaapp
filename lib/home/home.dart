@@ -1,10 +1,15 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:app_boleia/layout.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+import '../service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -13,7 +18,33 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
+class Motorista {
+  final String nome;
+  final String rotaAtual;
+  final String departamento;
+  final String escolha;
+
+  Motorista(
+      {required this.nome,
+      required this.rotaAtual,
+      required this.departamento,
+      required this.escolha});
+
+  factory Motorista.fromJson(Map<String, dynamic> json) {
+    return Motorista(
+      nome: json['usuario'] ??
+          'Nome Indisponível', // Valores padrão para campos nulos
+      rotaAtual: json['rotaAtual'] ?? 'Rota Indisponível',
+      departamento: json['departamento'] ?? 'Hora Indisponível',
+      escolha: json['escolha'] ?? 'Hora Indisponível',
+    );
+  }
+}
+
 class _HomeState extends State<Home> {
+  List<Motorista> _motoristas = [];
+  Timer? _timer;
+
   Future<bool> _confirmExit() async {
     return (await showDialog(
           context: context,
@@ -38,12 +69,41 @@ class _HomeState extends State<Home> {
         false;
   }
 
+  ApiService apiService = ApiService();
+
   String _username = '';
   String _usertype = '';
   @override
   void initState() {
     super.initState();
     _loadUsername();
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    _timer = Timer.periodic(
+        Duration(seconds: 1), (Timer t) => _fetchAndUpdateMotoristas());
+    _fetchAndUpdateMotoristas(); // Chame uma vez imediatamente
+  }
+
+  Future<void> _fetchAndUpdateMotoristas() async {
+    try {
+      var motoristas = await apiService.getMotoristas();
+      if (mounted) {
+        setState(() {
+          _motoristas = motoristas;
+        });
+      }
+    } catch (e) {
+      // Trate a exceção, se necessário
+      print(e);
+    }
   }
 
   Future<void> _loadUsername() async {
@@ -63,212 +123,149 @@ class _HomeState extends State<Home> {
     double screenheight = MediaQuery.of(context).size.height;
 
     return WillPopScope(
-      onWillPop: _confirmExit,
-      child: Scaffold(
-        drawer: Drawer(
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
+        onWillPop: _confirmExit,
+        child: Scaffold(
+          drawer: Drawer(
+            child: Column(
+              children: <Widget>[
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: <Widget>[
+                      DrawerHeader(
+                        decoration: const BoxDecoration(
+                          color: Color.fromARGB(200, 23, 135, 172),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            GestureDetector(
+                              child: CircleAvatar(
+                                  backgroundColor:
+                                      const Color.fromARGB(200, 23, 135, 172),
+                                  radius: 30.0,
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 50,
+                                    color: Colors.white,
+                                  )),
+                            ),
+                            const SizedBox(height: 10.0),
+                            Text(
+                              _username,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.0,
+                              ),
+                            ),
+                            Text(
+                              _usertype,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.add_circle),
+                        title: const Text('Iniciar Procedimento'),
+                        onTap: () {
+                          Navigator.pop(context);
+
+                          //   Navigator.push(
+                          //     context,
+                          //     MaterialPageRoute(
+                          //         builder: (context) => const IniciarProc()),
+                          //   );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.calculate),
+                        title: const Text('Calculadora'),
+                        onTap: () {
+                          Navigator.pop(context);
+
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //       builder: (context) => const Calculadora()),
+                          // );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(16.0),
+                  child: IconButton(
+                    icon: Icon(Icons.close, color: Colors.blueGrey.shade800),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          appBar: appBar(title: 'Home'),
+          backgroundColor: Colors.white,
+          body: Column(
+            children: [
+              Center(
+                heightFactor: 1.1,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    DrawerHeader(
-                      decoration: const BoxDecoration(
-                        color: Color.fromARGB(200, 23, 135, 172),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          GestureDetector(
-                            child: CircleAvatar(
-                                backgroundColor:
-                                    const Color.fromARGB(200, 23, 135, 172),
-                                radius: 30.0,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.white,
-                                )),
-                          ),
-                          const SizedBox(height: 10.0),
-                          Text(
-                            _username,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.0,
-                            ),
-                          ),
-                          Text(
-                            _usertype,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16.0,
-                            ),
-                          ),
-                        ],
+                    CircleAvatar(
+                        backgroundColor:
+                            const Color.fromARGB(200, 23, 135, 172),
+                        radius: 50.0,
+                        child: const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: Colors.white,
+                        )),
+                    const SizedBox(height: 15.0),
+                    Text(
+                      _username,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18.0,
                       ),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.add_circle),
-                      title: const Text('Iniciar Procedimento'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        //   Navigator.push(
-                        //     context,
-                        //     MaterialPageRoute(
-                        //         builder: (context) => const IniciarProc()),
-                        //   );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.calculate),
-                      title: const Text('Calculadora'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //       builder: (context) => const Calculadora()),
-                        // );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.alarm_add),
-                      title: const Text('Temporizador'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(builder: (context) => const Temp()),
-                        // );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.receipt_long),
-                      title: const Text('Bulário'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        //  Navigator.push(
-                        //    context,
-                        //    MaterialPageRoute(
-                        //        builder: (context) => const Bulario()),
-                        //  );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.favorite),
-                      title: const Text('Favoritos'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //       builder: (context) => const Bulario()),
-                        // );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.history),
-                      title: const Text('Historico'),
-                      onTap: () {
-                        Navigator.pop(context);
-
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //       builder: (context) => const Bulario()),
-                        // );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.settings),
-                      title: const Text('Configurações'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        //  Navigator.push(
-                        //    context,
-                        //    MaterialPageRoute(
-                        //        builder: (context) => const ConfigApp()),
-                        //  );
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.info),
-                      title: const Text('Sobre'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        //   Navigator.push(
-                        //       context,
-                        //       MaterialPageRoute(
-                        //           builder: (context) => const ProfilePage()));
-                      },
+                    Text(
+                      _usertype,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16.0,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                child: IconButton(
-                  icon: Icon(Icons.close, color: Colors.blueGrey.shade800),
-                  onPressed: () {
-                    Navigator.pop(context);
+              SizedBox(
+                height: 0.05 * screenheight,
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _motoristas.length,
+                  itemBuilder: (context, index) {
+                    var motorista = _motoristas[index];
+                    return ListTile(
+                      title: Text(
+                          "${motorista.nome} - ${motorista.departamento} - ${motorista.escolha}"),
+                      subtitle: Text(
+                          "${motorista.rotaAtual} - Disponível às: ${motorista.departamento}"),
+                    );
                   },
                 ),
               ),
             ],
           ),
-        ),
-        appBar: appBar(title: 'Home'),
-        backgroundColor: Colors.white,
-        body: Column(
-          children: [
-            Center(
-              heightFactor: 1.5,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  CircleAvatar(
-                      backgroundColor: const Color.fromARGB(200, 23, 135, 172),
-                      radius: 70.0,
-                      child: const Icon(
-                        Icons.person,
-                        size: 80,
-                        color: Colors.white,
-                      )),
-                  const SizedBox(height: 15.0),
-                  Text(
-                    _username,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18.0,
-                    ),
-                  ),
-                  Text(
-                    _usertype,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16.0,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: 0.05 * screenheight,
-            ),
-            Column(
-              children: <Widget>[],
-            )
-          ],
-        ),
-      ),
-    );
+        ));
   }
 }

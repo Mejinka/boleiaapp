@@ -10,6 +10,8 @@ import os
 import bcrypt
 import re
 
+from datetime import timedelta, datetime, time
+
 
 DB_HOST = os.environ.get('DB_HOST', 'localhost') 
 DB_PORT = int(os.environ.get('DB_PORT', 3306))    
@@ -41,9 +43,21 @@ def create_tables():
                     email VARCHAR(255),
                     senha VARCHAR(255),
                     departamento VARCHAR(255),
+                    escolha VARCHAR(255),
                     PRIMARY KEY(id)
                 )
             ''')
+                       
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS colaboradores (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    usuario VARCHAR(255),
+                    rotaAtual VARCHAR(255),
+                    hora TIME,
+                    escolha VARCHAR(255),
+                    departamento VARCHAR(255)
+                )
+            ''')  
             conn.commit()
          
 create_tables()
@@ -54,17 +68,36 @@ def is_valid_email(email):
 
 
 # Rotas
+
+
+# ... rest of your imports ...
+
+@app.route('/motoristas', methods=['GET'])
+def get_motoristas():
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                # Selecione os usuários da tabela 'cadastro' onde a escolha é 'motorista'
+                cursor.execute("SELECT id, usuario, rotaAtual, hora, escolha, departamento FROM colaboradores WHERE escolha = 'Motorista'")
+                motoristas = cursor.fetchall()
+                return jsonify(motoristas)
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao buscar motoristas"}), 500
+
+
 @app.route('/cadastro', methods=['POST'])
 def cadastro():
     try:
         data = request.json
-        if 'usuario' not in data or 'email' not in data or 'senha' not in data or 'departamento' not in data:
+        if 'usuario' not in data or 'email' not in data or 'senha' not in data or 'departamento' not in data or 'escolha' not in data:
             return jsonify({"success": False, "message": "Dados incompletos"})
 
         usuario = data['usuario']
         email = data['email']
         senha = data['senha']
         departamento = data['departamento']
+        escolha = data['escolha']
 
         if not is_valid_email(email):
             return jsonify({"success": False, "message": "Email inválido"})
@@ -75,15 +108,24 @@ def cadastro():
                 if cursor.fetchone():
                     return jsonify({"success": False, "message": "Email já cadastrado"})
 
-                cursor.execute('INSERT INTO cadastro (usuario, email, senha, departamento) VALUES (%s, %s, %s, %s)', 
-                               (usuario, email, senha, departamento))
+                # Insere na tabela cadastro
+                cursor.execute('INSERT INTO cadastro (usuario, email, senha, departamento, escolha) VALUES (%s, %s, %s, %s, %s)', 
+                               (usuario, email, senha, departamento, escolha))
                 conn.commit()
+
+                # Se a escolha for 'motorista', insere na tabela motoristas
+                if escolha == 'Motorista':
+                    cursor.execute('INSERT INTO colaboradores (usuario, escolha, departamento) VALUES (%s, %s, %s)', (usuario, escolha, departamento))
+                    conn.commit()
+
                 return jsonify({"success": True, "message": "Utilizador cadastrado com sucesso"})
 
     except Exception as e:
         print(e)
         return jsonify({"success": False, "message": "Erro ao processar a solicitação"})
-    
+
+    return jsonify({"success": False, "message": "Erro ao cadastrar usuário"})
+
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -98,11 +140,16 @@ def login():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    'SELECT senha FROM cadastro WHERE usuario = %s', (usuario,))
+                    'SELECT senha, usuario, departamento FROM cadastro WHERE usuario = %s', (usuario,))
                 user_record = cursor.fetchone()
 
                 if user_record and user_record[0] == senha:
-                    return jsonify({"success": True, "message": "Login bem-sucedido"})
+                    return jsonify({
+                        "success": True, 
+                        "message": "Login bem-sucedido",
+                        "usuario": user_record[1],
+                        "departamento": user_record[2]
+                    })
                 else:
                     return jsonify({"success": False, "message": "Utilizador ou Password incorretos"})
 

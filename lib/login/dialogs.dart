@@ -10,10 +10,13 @@ void showNewUser(
     TextEditingController newUserController,
     TextEditingController newPassController,
     TextEditingController newEmailController,
-    TextEditingController dropdownController) {
+    TextEditingController dropdownController,
+    TextEditingController dropdownCartController) {
   final localContext = context;
   const List<String> list = <String>['D.A.C', 'D.A.C 2', 'D.A.C 3', 'D.A.C 4'];
+  const List<String> listcart = <String>['Motorista', 'Boleia'];
   String dropdownValue = list.first;
+  String dropdownValueM = listcart.first;
   bool isPasswordVisible = false;
   showDialog(
     context: localContext,
@@ -23,7 +26,7 @@ void showNewUser(
         content: StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return SizedBox(
-              height: 250,
+              height: 320,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -159,6 +162,42 @@ void showNewUser(
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 60,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.black26),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.black26),
+                          ),
+                          labelText: "Escolha",
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: dropdownValueM,
+                            icon: const Icon(Icons.arrow_drop_down),
+                            onChanged: (String? value) {
+                              print(value);
+                              setState(() {
+                                dropdownValueM = value!;
+                                dropdownCartController.text = dropdownValueM;
+                                print(dropdownValueM);
+                              });
+                            },
+                            items: listcart
+                                .map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
                     )
                   ],
                 ),
@@ -184,11 +223,11 @@ void showNewUser(
                   newEmailController.text.isNotEmpty) {
                 ApiService apiService = ApiService();
                 var response = await apiService.registerUser(
-                  newUserController.text,
-                  newEmailController.text,
-                  newPassController.text,
-                  dropdownValue,
-                );
+                    newUserController.text,
+                    newEmailController.text,
+                    newPassController.text,
+                    dropdownValue,
+                    dropdownValueM);
                 if (response['success']) {
                   // Sucesso
                   Navigator.of(context).pop();

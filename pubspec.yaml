@@ -38,6 +38,14 @@ dependencies:
   shared_preferences: ^2.2.2
   intl: ^0.18.1
   http: ^1.1.0
+  flutter_map: ^6.1.0
+  google_maps_flutter_android: ^2.6.0
+  google_maps_flutter_platform_interface: ^2.4.1
+  url_strategy: ^0.2.0
+  syncfusion_flutter_maps: ^23.2.7
+  flutter_map_tappable_polyline: ^6.0.0
+  location: ^5.0.3
+  flutter_map_marker_popup: ^6.1.2
 
 dev_dependencies:
   flutter_test:

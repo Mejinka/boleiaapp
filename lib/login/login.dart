@@ -2,6 +2,7 @@
 
 import 'package:app_boleia/loading/loading.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../service.dart';
 import 'dialogs.dart';
@@ -25,6 +26,8 @@ class _LoginPageState extends State<LoginPage> {
   final newEmailController = TextEditingController();
 
   final dropdownController = TextEditingController();
+
+  final dropdownCartController = TextEditingController();
 
   bool _isPasswordVisible = false;
 
@@ -159,6 +162,7 @@ class _LoginPageState extends State<LoginPage> {
                               newPassController,
                               newEmailController,
                               dropdownController,
+                              dropdownCartController,
                             );
                           },
                           child: const Text(
@@ -208,11 +212,17 @@ class _LoginPageState extends State<LoginPage> {
                             var response = await ApiService()
                                 .loginUser(username, password);
                             if (response['success']) {
+                              SharedPreferences prefs =
+                                  await SharedPreferences.getInstance();
+                              await prefs.setString(
+                                  'username', response['usuario']);
+                              await prefs.setString(
+                                  'usertype', response['departamento']);
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const LoadingPage(),
-                                ),
+                                    builder: (context) => LoadingPage()),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
