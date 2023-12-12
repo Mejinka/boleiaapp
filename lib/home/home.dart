@@ -5,11 +5,11 @@ import 'package:app_boleia/layout.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import '../service.dart';
+import 'details.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -23,12 +23,15 @@ class Motorista {
   final String rotaAtual;
   final String departamento;
   final String escolha;
+  String hora;
 
-  Motorista(
-      {required this.nome,
-      required this.rotaAtual,
-      required this.departamento,
-      required this.escolha});
+  Motorista({
+    required this.nome,
+    required this.rotaAtual,
+    required this.departamento,
+    required this.escolha,
+    required this.hora,
+  });
 
   factory Motorista.fromJson(Map<String, dynamic> json) {
     return Motorista(
@@ -37,13 +40,26 @@ class Motorista {
       rotaAtual: json['rotaAtual'] ?? 'Rota Indisponível',
       departamento: json['departamento'] ?? 'Hora Indisponível',
       escolha: json['escolha'] ?? 'Hora Indisponível',
+      hora: json['hora'] ?? 'Hora Indisponível',
     );
+  }
+}
+
+String formatTime(String time) {
+  try {
+    // Supondo que a hora esteja em formato "HH:mm:ss"
+    final DateTime parsedTime = DateFormat("HH:mm:ss").parse(time);
+    return DateFormat("HH:mm").format(parsedTime);
+  } catch (e) {
+    // Em caso de erro, retorne a hora original ou um placeholder
+    return time;
   }
 }
 
 class _HomeState extends State<Home> {
   List<Motorista> _motoristas = [];
   Timer? _timer;
+  Future<List<Motorista>>? _futureMotoristas;
 
   Future<bool> _confirmExit() async {
     return (await showDialog(
@@ -72,23 +88,26 @@ class _HomeState extends State<Home> {
   ApiService apiService = ApiService();
 
   String _username = '';
+  String _userdep = '';
   String _usertype = '';
   @override
   void initState() {
     super.initState();
     _loadUsername();
     _startPolling();
+    _futureMotoristas = apiService.getMotoristas(); // Armazene o future aqui
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+
     super.dispose();
   }
 
   void _startPolling() {
     _timer = Timer.periodic(
-        Duration(seconds: 1), (Timer t) => _fetchAndUpdateMotoristas());
+        Duration(seconds: 5), (Timer t) => _fetchAndUpdateMotoristas());
     _fetchAndUpdateMotoristas(); // Chame uma vez imediatamente
   }
 
@@ -109,10 +128,12 @@ class _HomeState extends State<Home> {
   Future<void> _loadUsername() async {
     final prefs = await SharedPreferences.getInstance();
     String username = prefs.getString('username') ?? 'Usuário Anônimo';
+    String userdep = prefs.getString('userdep') ?? 'Cargo Anônimo';
     String usertype = prefs.getString('usertype') ?? 'Cargo Anônimo';
 
     setState(() {
       _username = username;
+      _userdep = userdep;
       _usertype = usertype;
     });
   }
@@ -237,6 +258,14 @@ class _HomeState extends State<Home> {
                       ),
                     ),
                     Text(
+                      _userdep,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16.0,
+                      ),
+                    ),
+                    Text(
                       _usertype,
                       style: const TextStyle(
                         color: Colors.black,
@@ -251,16 +280,48 @@ class _HomeState extends State<Home> {
                 height: 0.05 * screenheight,
               ),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _motoristas.length,
-                  itemBuilder: (context, index) {
-                    var motorista = _motoristas[index];
-                    return ListTile(
-                      title: Text(
-                          "${motorista.nome} - ${motorista.departamento} - ${motorista.escolha}"),
-                      subtitle: Text(
-                          "${motorista.rotaAtual} - Disponível às: ${motorista.departamento}"),
-                    );
+                child: FutureBuilder<List<Motorista>>(
+                  future: _futureMotoristas,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Erro: ${snapshot.error}'));
+                    } else if (snapshot.hasData) {
+                      List<Motorista> motoristas = snapshot.data!;
+                      return ListView.builder(
+                        itemCount: motoristas.length,
+                        itemBuilder: (context, index) {
+                          var motorista = motoristas[index];
+                          // Constrói o ListTile para cada motorista aqui
+                          return ListTile(
+                            title: Text(
+                                "${motorista.nome} - ${motorista.departamento} - ${motorista.escolha}"),
+                            subtitle: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("${motorista.rotaAtual} "),
+                                Text(
+                                    "Disponível às: ${formatTime(motorista.hora)}  "),
+                              ],
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      MotoristaDetails(motorista: motorista),
+                                ),
+                              );
+                              // Ação de tap aqui
+                            },
+                          );
+                        },
+                      );
+                    } else {
+                      return Center(
+                          child: Text('Nenhum motorista encontrado.'));
+                    }
                   },
                 ),
               ),

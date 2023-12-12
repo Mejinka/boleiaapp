@@ -58,19 +58,43 @@ def create_tables():
                     departamento VARCHAR(255)
                 )
             ''')  
-            conn.commit()
-         
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS rotas (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    motorista_id INT,
+                    descricao VARCHAR(255),
+                    FOREIGN KEY (motorista_id) REFERENCES colaboradores(id) ON DELETE CASCADE
+                )
+            ''')           
+            conn.commit()   
 create_tables()
 
 def is_valid_email(email):
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
 
 
+@app.route('/add_rota', methods=['POST'])
+def add_rota():
+    data = request.json
+    motorista_id = data.get('motorista_id')
+    descricao = data.get('descricao')
 
-# Rotas
+    if not motorista_id or not descricao:
+        return jsonify({"success": False, "message": "Motorista ID e descrição são obrigatórios"})
 
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', 
+                               (motorista_id, descricao))
+                conn.commit()
+                return jsonify({"success": True, "message": "Rota adicionada com sucesso"})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao adicionar rota"})
 
-# ... rest of your imports ...
+    return jsonify({"success": False, "message": "Erro ao processar a solicitação"})
+
 
 @app.route('/motoristas', methods=['GET'])
 def get_motoristas():
@@ -80,6 +104,8 @@ def get_motoristas():
                 # Selecione os usuários da tabela 'cadastro' onde a escolha é 'motorista'
                 cursor.execute("SELECT id, usuario, rotaAtual, hora, escolha, departamento FROM colaboradores WHERE escolha = 'Motorista'")
                 motoristas = cursor.fetchall()
+                for motorista in motoristas:
+                    motorista['hora'] = str(motorista['hora'])
                 return jsonify(motoristas)
     except Exception as e:
         print(e)
@@ -140,7 +166,7 @@ def login():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    'SELECT senha, usuario, departamento FROM cadastro WHERE usuario = %s', (usuario,))
+                    'SELECT senha, usuario, departamento, escolha FROM cadastro WHERE usuario = %s', (usuario,))
                 user_record = cursor.fetchone()
 
                 if user_record and user_record[0] == senha:
@@ -148,7 +174,9 @@ def login():
                         "success": True, 
                         "message": "Login bem-sucedido",
                         "usuario": user_record[1],
-                        "departamento": user_record[2]
+                        "departamento": user_record[2],
+                        "escolha": user_record[3]  # Por exemplo, 'Motorista', 'Administrador', etc.
+
                     })
                 else:
                     return jsonify({"success": False, "message": "Utilizador ou Password incorretos"})
@@ -194,6 +222,20 @@ def update_password():
 
     return jsonify({"success": False, "message": "Erro ao atualizar senha"})
 
+@app.route('/usuario/<nome_usuario>', methods=['GET'])
+def get_usuario(nome_usuario):
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute("SELECT usuario, departamento, escolha FROM cadastro WHERE usuario = %s", (nome_usuario,))
+                usuario = cursor.fetchone()
+                if usuario:
+                    return jsonify(usuario)
+                else:
+                    return jsonify({"success": False, "message": "Usuário não encontrado"}), 404
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao buscar usuário"}), 500
 
     
 if __name__ == '__main__':

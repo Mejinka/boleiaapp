@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:app_boleia/home/home.dart';
 import 'package:app_boleia/loading/loading.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../home/home_boleia.dart';
+import '../home/home_motorista.dart';
 import '../service.dart';
 import 'dialogs.dart';
 
@@ -217,13 +220,22 @@ class _LoginPageState extends State<LoginPage> {
                               await prefs.setString(
                                   'username', response['usuario']);
                               await prefs.setString(
-                                  'usertype', response['departamento']);
+                                  'userdep', response['departamento']);
+                              await prefs.setString(
+                                  'usertype', response['escolha']);
 
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => LoadingPage()),
-                              );
+                              // Redirecionar com base no tipo de usuário
+                              if (response['escolha'] == 'Motorista') {
+                                Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => MotoristaPage()));
+                              } else if (response['escolha'] == 'Boleia') {
+                                Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => BoleiaPage()));
+                              }
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app_boleia/home/home_motorista.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,14 +45,28 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
+      if (responseData['success']) {
+        // Salvar informações do usuário nas SharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('username', responseData['usuario']);
+        await prefs.setString('userdep', responseData['departamento']);
+        await prefs.setString('usertype', responseData['escolha']);
+        await prefs.setString('motoristaId', responseData['id'].toString());
+      }
       return {
         'success': responseData['success'],
         'message': responseData['message'],
         'usuario': responseData['usuario'],
-        'departamento': responseData['departamento']
+        'departamento': responseData['departamento'],
+        'escolha': responseData['escolha'],
+        'id': responseData['id']
+      };
+    } else {
+      return {
+        'success': false,
+        'message': 'Erro na comunicação com o servidor'
       };
     }
-    return {'success': false, 'message': 'Erro na comunicação com o servidor'};
   }
 
   Future<Map<String, dynamic>> recoverPassword(String email) async {
@@ -105,5 +120,55 @@ class ApiService {
       // Se a resposta não for bem-sucedida, lançar uma exceção
       throw Exception('Erro ao carregar motoristas: ${response.statusCode}');
     }
+  }
+
+  Future<Map<String, dynamic>> getUserInfo(String nomeUsuario) async {
+    final url = Uri.parse('$_baseUrl/usuario/$nomeUsuario');
+    final response = await http.get(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      return {
+        'success': true,
+        'usuario': responseData['usuario'],
+        'departamento': responseData['departamento'],
+        'escolha': responseData['escolha'],
+      };
+    } else {
+      return {
+        'success': false,
+        'message': 'Erro ao buscar informações do usuário'
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> saveRotas(
+      String motoristaId, List<Rota> rotas) async {
+    final url = Uri.parse(
+        '$_baseUrl/add_rota'); // Substitua pela URL correta do seu endpoint
+
+    List<Map<String, dynamic>> rotasData =
+        rotas.map((rota) => {'descricao': rota.descricao}).toList();
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'motoristaId': motoristaId,
+        'rotas': rotasData,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      return {
+        'success': responseData['success'],
+        'message': responseData['message']
+      };
+    }
+    return {'success': false, 'message': 'Erro na comunicação com o servidor'};
   }
 }
