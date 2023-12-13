@@ -76,24 +76,68 @@ def is_valid_email(email):
 @app.route('/add_rota', methods=['POST'])
 def add_rota():
     data = request.json
-    motorista_id = data.get('motorista_id')
-    descricao = data.get('descricao')
+    motorista_id = data.get('motoristaId')
+    rotas = data.get('rotas')
 
-    if not motorista_id or not descricao:
-        return jsonify({"success": False, "message": "Motorista ID e descrição são obrigatórios"})
+    if not motorista_id or not rotas:
+        return jsonify({"success": False, "message": "Motorista ID e rotas são obrigatórios"})
 
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', 
-                               (motorista_id, descricao))
+                for rota in rotas:
+                    descricao = rota.get('descricao')
+                    cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', 
+                                   (motorista_id, descricao))
                 conn.commit()
-                return jsonify({"success": True, "message": "Rota adicionada com sucesso"})
+            return jsonify({"success": True, "message": "Rotas adicionadas com sucesso"})
     except Exception as e:
         print(e)
-        return jsonify({"success": False, "message": "Erro ao adicionar rota"})
+        return jsonify({"success": False, "message": "Erro ao adicionar rotas"})
 
-    return jsonify({"success": False, "message": "Erro ao processar a solicitação"})
+@app.route('/get_rotas/<int:motorista_id>', methods=['GET'])
+def get_rotas(motorista_id):
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('SELECT * FROM rotas WHERE motorista_id = %s', (motorista_id,))
+                rotas = cursor.fetchall()
+                return jsonify({"success": True, "rotas": rotas})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao buscar rotas"})
+    
+@app.route('/update_rota/<int:rota_id>', methods=['PUT'])
+def update_rota(rota_id):
+    data = request.json
+    nova_descricao = data.get('descricao')
+
+    if not nova_descricao:
+        return jsonify({"success": False, "message": "Descrição é obrigatória"})
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('UPDATE rotas SET descricao = %s WHERE id = %s', 
+                               (nova_descricao, rota_id))
+                conn.commit()
+                return jsonify({"success": True, "message": "Rota atualizada com sucesso"})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao atualizar rota"})
+
+
+@app.route('/delete_rota/<int:rota_id>', methods=['DELETE'])
+def delete_rota(rota_id):
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('DELETE FROM rotas WHERE id = %s', (rota_id,))
+                conn.commit()
+                return jsonify({"success": True, "message": "Rota deletada com sucesso"})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao deletar rota"})
 
 
 @app.route('/motoristas', methods=['GET'])
@@ -166,16 +210,17 @@ def login():
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    'SELECT senha, usuario, departamento, escolha FROM cadastro WHERE usuario = %s', (usuario,))
+                    'SELECT id, senha, usuario, departamento, escolha FROM cadastro WHERE usuario = %s', (usuario,))
                 user_record = cursor.fetchone()
 
-                if user_record and user_record[0] == senha:
+                if user_record and user_record[1] == senha:
                     return jsonify({
                         "success": True, 
                         "message": "Login bem-sucedido",
-                        "usuario": user_record[1],
-                        "departamento": user_record[2],
-                        "escolha": user_record[3]  # Por exemplo, 'Motorista', 'Administrador', etc.
+                        "id": user_record[0],  # Inclua o ID do usuário aqui
+                        "usuario": user_record[2],
+                        "departamento": user_record[3],
+                        "escolha": user_record[4]  # Por exemplo, 'Motorista', 'Administrador', etc.
 
                     })
                 else:

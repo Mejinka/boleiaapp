@@ -46,9 +46,26 @@ String formatTime(String time) {
 }
 
 class Rota {
+  String? id;
   String descricao;
 
-  Rota({required this.descricao});
+  Rota({this.id, required this.descricao});
+
+  factory Rota.fromJson(List<dynamic> json) {
+    // Ajuste os índices conforme necessário
+    var id = json[0];
+    String? idStr;
+
+    if (id != null) {
+      idStr = id.toString();
+    }
+
+    return Rota(
+      id: idStr,
+      descricao:
+          json[2].toString(), // Assumindo que a descrição é o terceiro elemento
+    );
+  }
 }
 
 class _MotoristaPageState extends State<MotoristaPage> {
@@ -86,10 +103,31 @@ class _MotoristaPageState extends State<MotoristaPage> {
   String _username = '';
   String _userdep = '';
   String _usertype = '';
+  List<Rota> _rotas = [];
+
   @override
   void initState() {
     super.initState();
     _loadUsername();
+    _fetchRotas(); // Adiciona a chamada para buscar as rotas
+  }
+
+  Future<void> _fetchRotas() async {
+    final prefs = await SharedPreferences.getInstance();
+    final motoristaId = prefs.getInt('motoristaId')?.toString() ?? '';
+    if (motoristaId.isNotEmpty) {
+      print(
+          'Buscando rotas para o motoristaId: $motoristaId'); // Adicione esta linha
+
+      try {
+        final rotas = await apiService.getRotas(motoristaId);
+        setState(() {
+          _rotas = rotas;
+        });
+      } catch (e) {
+        // Trate erros adequadamente
+      }
+    }
   }
 
   @override
@@ -99,33 +137,77 @@ class _MotoristaPageState extends State<MotoristaPage> {
     super.dispose();
   }
 
-  void _addNewRota() {
-    setState(() {
-      _rotas.add(Rota(descricao: 'Nova Rota'));
-    });
+  void _addNewRota() async {
+    String novaDescricao = '';
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Adicionar Nova Rota'),
+          content: TextFormField(
+            onChanged: (value) {
+              novaDescricao = value;
+            },
+            decoration: InputDecoration(
+              hintText: 'Descrição da Rota',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (novaDescricao.isNotEmpty) {
+                  setState(() {
+                    _rotas.add(Rota(descricao: novaDescricao));
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text('Adicionar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  void _removeLastRota() {
+  void _removeLastRota() async {
     if (_rotas.isNotEmpty) {
-      setState(() {
-        _rotas.removeLast();
-      });
+      Rota ultimaRota = _rotas.last;
+
+      try {
+        final response = await apiService.deleteRota(ultimaRota.id!);
+        if (response['success']) {
+          setState(() {
+            _rotas.removeLast();
+          });
+        } else {
+          // Lide com o erro, talvez mostrando uma mensagem ao usuário
+        }
+      } catch (e) {
+        // Lide com exceções, talvez mostrando uma mensagem de erro
+      }
     }
   }
 
   void _saveRotas() async {
     final prefs = await SharedPreferences.getInstance();
-    String motoristaId = prefs.getString('motoristaId') ?? '';
+    int motoristaId = prefs.getInt('motoristaId') ?? 0;
 
-    if (motoristaId.isEmpty) {
+    if (motoristaId == 0) {
       _showErrorDialog('ID do motorista não encontrado.');
       return;
     }
 
     try {
       ApiService apiService = ApiService();
+      // Converta motoristaId para String antes de passar
       Map<String, dynamic> response =
-          await apiService.saveRotas(motoristaId, _rotas);
+          await apiService.saveRotas(motoristaId.toString(), _rotas);
       if (response['success']) {
         _showSuccessDialog();
       } else {
@@ -187,8 +269,55 @@ class _MotoristaPageState extends State<MotoristaPage> {
     });
   }
 
-  List<Rota> _rotas =
-      List.generate(5, (index) => Rota(descricao: 'Rota ${index + 1}'));
+  void _editRota(int index) async {
+    String novaDescricao = _rotas[index].descricao;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Editar Rota'),
+          content: TextFormField(
+            initialValue: _rotas[index].descricao,
+            onChanged: (value) {
+              novaDescricao = value;
+            },
+            decoration: InputDecoration(
+              hintText: 'Descrição da Rota',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (novaDescricao.isNotEmpty &&
+                    novaDescricao != _rotas[index].descricao) {
+                  if (_rotas[index].id != null) {
+                    try {
+                      final response = await apiService.updateRota(
+                          _rotas[index].id!, novaDescricao);
+                      if (response['success']) {
+                        setState(() {
+                          _rotas[index].descricao = novaDescricao;
+                        });
+                      }
+                    } catch (e) {
+                      // Tratar erros adequadamente
+                    }
+                  }
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,209 +325,204 @@ class _MotoristaPageState extends State<MotoristaPage> {
     double screenheight = MediaQuery.of(context).size.height;
 
     return WillPopScope(
-        onWillPop: _confirmExit,
-        child: Scaffold(
-            drawer: Drawer(
+      onWillPop: _confirmExit,
+      child: Scaffold(
+        drawer: Drawer(
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: <Widget>[
+                    DrawerHeader(
+                      decoration: const BoxDecoration(
+                        color: Color.fromARGB(200, 23, 135, 172),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          GestureDetector(
+                            child: CircleAvatar(
+                                backgroundColor:
+                                    const Color.fromARGB(200, 23, 135, 172),
+                                radius: 30.0,
+                                child: Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white,
+                                )),
+                          ),
+                          const SizedBox(height: 10.0),
+                          Text(
+                            _username,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16.0,
+                            ),
+                          ),
+                          Text(
+                            _usertype,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.add_circle),
+                      title: const Text('Iniciar Procedimento'),
+                      onTap: () {
+                        Navigator.pop(context);
+
+                        //   Navigator.push(
+                        //     context,
+                        //     MaterialPageRoute(
+                        //         builder: (context) => const IniciarProc()),
+                        //   );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.calculate),
+                      title: const Text('Calculadora'),
+                      onTap: () {
+                        Navigator.pop(context);
+
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //       builder: (context) => const Calculadora()),
+                        // );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                child: IconButton(
+                  icon: Icon(Icons.close, color: Colors.blueGrey.shade800),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        appBar: appBar(
+          title: 'MotoristaPage',
+        ),
+        backgroundColor: Colors.white,
+        body: Column(
+          children: [
+            Center(
+              heightFactor: 1.1,
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      children: <Widget>[
-                        DrawerHeader(
-                          decoration: const BoxDecoration(
-                            color: Color.fromARGB(200, 23, 135, 172),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              GestureDetector(
-                                child: CircleAvatar(
-                                    backgroundColor:
-                                        const Color.fromARGB(200, 23, 135, 172),
-                                    radius: 30.0,
-                                    child: Icon(
-                                      Icons.person,
-                                      size: 50,
-                                      color: Colors.white,
-                                    )),
-                              ),
-                              const SizedBox(height: 10.0),
-                              Text(
-                                _username,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16.0,
-                                ),
-                              ),
-                              Text(
-                                _usertype,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13.0,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.add_circle),
-                          title: const Text('Iniciar Procedimento'),
-                          onTap: () {
-                            Navigator.pop(context);
-
-                            //   Navigator.push(
-                            //     context,
-                            //     MaterialPageRoute(
-                            //         builder: (context) => const IniciarProc()),
-                            //   );
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.calculate),
-                          title: const Text('Calculadora'),
-                          onTap: () {
-                            Navigator.pop(context);
-
-                            // Navigator.push(
-                            //   context,
-                            //   MaterialPageRoute(
-                            //       builder: (context) => const Calculadora()),
-                            // );
-                          },
-                        ),
-                      ],
+                  CircleAvatar(
+                      backgroundColor: const Color.fromARGB(200, 23, 135, 172),
+                      radius: 50.0,
+                      child: const Icon(
+                        Icons.person,
+                        size: 60,
+                        color: Colors.white,
+                      )),
+                  const SizedBox(height: 15.0),
+                  Text(
+                    _username,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.0,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    child: IconButton(
-                      icon: Icon(Icons.close, color: Colors.blueGrey.shade800),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                  Text(
+                    _userdep,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16.0,
+                    ),
+                  ),
+                  Text(
+                    _usertype,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16.0,
                     ),
                   ),
                 ],
               ),
             ),
-            appBar: appBar(
-              title: 'MotoristaPage',
-            ),
-            backgroundColor: Colors.white,
-            body: Column(
-              children: [
-                Center(
-                  heightFactor: 1.1,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      CircleAvatar(
-                          backgroundColor:
-                              const Color.fromARGB(200, 23, 135, 172),
-                          radius: 50.0,
-                          child: const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.white,
-                          )),
-                      const SizedBox(height: 15.0),
-                      Text(
-                        _username,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18.0,
+            Expanded(
+              child: ListView.builder(
+                itemCount:
+                    _rotas.length + 1, // Adiciona 1 para o botão de salvar
+                itemBuilder: (context, index) {
+                  if (index == _rotas.length) {
+                    // Botão para salvar as rotas
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: ElevatedButton(
+                        onPressed: _saveRotas,
+                        child: Text('Salvar Rotas'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
                         ),
                       ),
-                      Text(
-                        _userdep,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16.0,
-                        ),
-                      ),
-                      Text(
-                        _usertype,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount:
-                        _rotas.length + 1, // Adiciona 1 para o botão de salvar
-                    itemBuilder: (context, index) {
-                      if (index == _rotas.length) {
-                        // Se for o último item, retorna um botão para salvar as rotas
-                        return Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: ElevatedButton(
-                            onPressed: _saveRotas,
-                            child: Text('Salvar Rotas'),
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: Size(double.infinity,
-                                  50), // Torna o botão mais largo
-                            ),
-                          ),
-                        );
-                      }
+                    );
+                  }
 
-                      // Retorna o Card para cada rota
-                      return Card(
-                        margin: EdgeInsets.all(8.0),
-                        child: ListTile(
-                          title: TextFormField(
-                            initialValue: _rotas[index].descricao,
-                            decoration: InputDecoration(
-                              labelText: 'Descrição da Rota ${index + 1}',
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _rotas[index].descricao = value;
-                              });
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                  // Retorna o Card para cada rota com a funcionalidade de edição
+                  return GestureDetector(
+                    onTap: () => _editRota(index),
+                    child: Card(
+                      margin: EdgeInsets.all(8.0),
+                      child: ListTile(
+                        title: Text(
+                            'Rota ${index + 1}: ${_rotas[index].descricao}'),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-            floatingActionButton: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: <Widget>[
-                  Visibility(
-                    visible: _areButtonsVisible,
-                    child: FloatingActionButton(
-                      heroTag: "addBtn",
-                      onPressed: _addNewRota,
-                      child: Icon(Icons.add),
-                    ),
-                  ),
-                  SizedBox(height: 10), // Espaçamento entre os botões
-                  Visibility(
-                    visible: _areButtonsVisible,
-                    child: FloatingActionButton(
-                      heroTag: "removeBtn",
-                      onPressed: _removeLastRota,
-                      child: Icon(Icons.remove),
-                      backgroundColor: Colors.red,
-                    ),
-                  ),
-                  SizedBox(height: 10), // Espaçamento entre os botões
-                  FloatingActionButton(
-                    heroTag: "toggleBtn",
-                    onPressed: _toggleButtons,
-                    child: Icon(_areButtonsVisible ? Icons.close : Icons.menu),
-                  ),
-                ])));
+          ],
+        ),
+        floatingActionButton: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: <Widget>[
+            Visibility(
+              visible: _areButtonsVisible,
+              child: FloatingActionButton(
+                heroTag: "addBtn",
+                onPressed: _addNewRota,
+                child: Icon(Icons.add),
+              ),
+            ),
+            SizedBox(height: 10), // Espaçamento entre os botões
+            Visibility(
+              visible: _areButtonsVisible,
+              child: FloatingActionButton(
+                heroTag: "removeBtn",
+                onPressed: _removeLastRota,
+                child: Icon(Icons.remove),
+                backgroundColor: Colors.red,
+              ),
+            ),
+            SizedBox(height: 10), // Espaçamento entre os botões
+            FloatingActionButton(
+              heroTag: "toggleBtn",
+              onPressed: _toggleButtons,
+              child: Icon(_areButtonsVisible ? Icons.close : Icons.menu),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

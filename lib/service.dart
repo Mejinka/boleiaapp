@@ -45,6 +45,8 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final responseData = json.decode(response.body);
+      print('ID do usuário: ${responseData['id']}');
+
       if (responseData['success']) {
         // Salvar informações do usuário nas SharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -56,15 +58,15 @@ class ApiService {
       return {
         'success': responseData['success'],
         'message': responseData['message'],
+        'id': responseData['id'],
         'usuario': responseData['usuario'],
         'departamento': responseData['departamento'],
         'escolha': responseData['escolha'],
-        'id': responseData['id']
       };
     } else {
       return {
         'success': false,
-        'message': 'Erro na comunicação com o servidor'
+        'message': 'Erro na comunicação com o servidor',
       };
     }
   }
@@ -153,6 +155,9 @@ class ApiService {
     List<Map<String, dynamic>> rotasData =
         rotas.map((rota) => {'descricao': rota.descricao}).toList();
 
+    // Adicionando print para depurar as rotas
+    print('Rotas a serem salvas: $rotasData');
+
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
@@ -170,5 +175,53 @@ class ApiService {
       };
     }
     return {'success': false, 'message': 'Erro na comunicação com o servidor'};
+  }
+
+  Future<List<Rota>> getRotas(String motoristaId) async {
+    final url = Uri.parse('$_baseUrl/get_rotas/$motoristaId');
+    final response =
+        await http.get(url, headers: {'Content-Type': 'application/json'});
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      if (responseData['success']) {
+        final rotasJson = responseData['rotas'] as List;
+        return rotasJson
+            .map((json) => Rota.fromJson(json as List<dynamic>))
+            .toList();
+      } else {
+        throw Exception('Falha ao buscar rotas');
+      }
+    } else {
+      throw Exception('Erro ao carregar rotas: ${response.statusCode}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateRota(
+      String rotaId, String descricao) async {
+    final url = Uri.parse('$_baseUrl/update_rota/$rotaId');
+    final response = await http.put(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'descricao': descricao}),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Erro ao atualizar rota: ${response.statusCode}');
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteRota(String rotaId) async {
+    final url = Uri.parse('$_baseUrl/delete_rota/$rotaId');
+    final response = await http.delete(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Erro ao deletar rota: ${response.statusCode}');
+    }
   }
 }

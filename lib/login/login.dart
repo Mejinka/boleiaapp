@@ -223,6 +223,7 @@ class _LoginPageState extends State<LoginPage> {
                                   'userdep', response['departamento']);
                               await prefs.setString(
                                   'usertype', response['escolha']);
+                              await prefs.setInt('motoristaId', response['id']);
 
                               // Redirecionar com base no tipo de usuário
                               if (response['escolha'] == 'Motorista') {
