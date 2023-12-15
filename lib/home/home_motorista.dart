@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:app_boleia/layout.dart';
+import 'package:app_boleia/login/login.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,8 +49,9 @@ String formatTime(String time) {
 class Rota {
   String? id;
   String descricao;
+  bool isModified;
 
-  Rota({this.id, required this.descricao});
+  Rota({this.id, required this.descricao, this.isModified = false});
 
   factory Rota.fromJson(List<dynamic> json) {
     // Ajuste os índices conforme necessário
@@ -204,17 +206,24 @@ class _MotoristaPageState extends State<MotoristaPage> {
     }
 
     try {
-      ApiService apiService = ApiService();
-      // Converta motoristaId para String antes de passar
-      Map<String, dynamic> response =
-          await apiService.saveRotas(motoristaId.toString(), _rotas);
-      if (response['success']) {
-        _showSuccessDialog();
-      } else {
-        _showErrorDialog(response['message']);
+      // Dividir as rotas em novas e existentes
+      List<Rota> novasRotas = _rotas.where((rota) => rota.id == null).toList();
+      List<Rota> rotasExistentes =
+          _rotas.where((rota) => rota.id != null && rota.isModified).toList();
+
+      // Processar novas rotas
+      for (var rota in novasRotas) {
+        await apiService.createRota(motoristaId.toString(), rota.descricao);
       }
+
+      // Processar rotas existentes
+      for (var rota in rotasExistentes) {
+        await apiService.updateRota(rota.id!, rota.descricao);
+      }
+
+      _showSuccessDialog();
     } catch (e) {
-      _showErrorDialog(e.toString());
+      _showErrorDialog('Erro ao salvar rotas: $e');
     }
   }
 
@@ -302,6 +311,8 @@ class _MotoristaPageState extends State<MotoristaPage> {
                       if (response['success']) {
                         setState(() {
                           _rotas[index].descricao = novaDescricao;
+                          _rotas[index].isModified =
+                              true; // Marcar como modificada
                         });
                       }
                     } catch (e) {
@@ -317,6 +328,17 @@ class _MotoristaPageState extends State<MotoristaPage> {
         );
       },
     );
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Limpa todas as informações armazenadas
+
+    // Redirecione para a tela de login ou inicial
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+      builder: (context) =>
+          LoginPage(), // Substitua TelaDeLogin pela sua tela de login
+    ));
   }
 
   @override
@@ -395,6 +417,11 @@ class _MotoristaPageState extends State<MotoristaPage> {
                         //       builder: (context) => const Calculadora()),
                         // );
                       },
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.logout),
+                      title: Text('Sair'),
+                      onTap: _logout,
                     ),
                   ],
                 ),

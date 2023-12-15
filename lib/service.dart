@@ -224,4 +224,23 @@ class ApiService {
       throw Exception('Erro ao deletar rota: ${response.statusCode}');
     }
   }
+
+  Future<Map<String, dynamic>> createRota(
+      String motoristaId, String descricao) async {
+    final url = Uri.parse('$_baseUrl/create_rota');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'motoristaId': motoristaId,
+        'descricao': descricao,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Erro ao criar rota: ${response.statusCode}');
+    }
+  }
 }

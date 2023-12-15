@@ -87,13 +87,36 @@ def add_rota():
             with conn.cursor() as cursor:
                 for rota in rotas:
                     descricao = rota.get('descricao')
-                    cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', 
-                                   (motorista_id, descricao))
+                    # Verificar se a rota já existe
+                    cursor.execute('SELECT * FROM rotas WHERE motorista_id = %s AND descricao = %s', (motorista_id, descricao))
+                    if cursor.fetchone():
+                        return jsonify({"success": False, "message": "Rota já cadastrada"})
+                    cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', (motorista_id, descricao))
                 conn.commit()
             return jsonify({"success": True, "message": "Rotas adicionadas com sucesso"})
     except Exception as e:
         print(e)
         return jsonify({"success": False, "message": "Erro ao adicionar rotas"})
+
+@app.route('/create_rota', methods=['POST'])
+def create_rota():
+    data = request.json
+    motorista_id = data.get('motoristaId')
+    descricao = data.get('descricao')
+
+    if not motorista_id or not descricao:
+        return jsonify({"success": False, "message": "Motorista ID e descrição são obrigatórios"})
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO rotas (motorista_id, descricao) VALUES (%s, %s)', 
+                               (motorista_id, descricao))
+                conn.commit()
+            return jsonify({"success": True, "message": "Rota adicionada com sucesso"})
+    except Exception as e:
+        print(e)
+        return jsonify({"success": False, "message": "Erro ao adicionar rota"})
 
 @app.route('/get_rotas/<int:motorista_id>', methods=['GET'])
 def get_rotas(motorista_id):
